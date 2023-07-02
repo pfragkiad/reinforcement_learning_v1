@@ -4,36 +4,41 @@ import numpy as np
 
 # pygame
 
-env = gym.make("MountainCar-v0", render_mode="human")
-
-
-print(f"Actions: {env.action_space.n}")
-print(f"High: {env.observation_space.high}")  # [0.6 0.07]
-print(f"Low: {env.observation_space.low}")  # [-1.2 -0.07]
-
-dimensions = env.observation_space.shape[0]  # len(env.observation_space.high)
-
-# initialize number of bins/buckets per dimension
-osSize = [20] * len(env.observation_space.high)
-
-# np.savez('test.npz',osSize)
-# os2 = np.load('test.npz')[0]
-# print(os2)
-
-
-binSize = (env.observation_space.high - env.observation_space.low) / osSize
-print(f"Size: {binSize}")
-
-q = np.random.uniform(low=-2, high=0, size=(osSize + [env.action_space.n]))
+binsCount = 30
 
 learningRate = 0.1
 discount = 0.95  # how important are future actions
-episodes = 10_000
+episodes = 2_000
+showEvery = 500
 epsilon = 0.5
 startEpsilonDecaying = 1
 endEpsilonDecaying = episodes // 2
 epsilonDecayValue = epsilon / (endEpsilonDecaying - startEpsilonDecaying)
 
+episodeRewards = []
+aggregatedEpisodeRewards = {'ep': [], 'avg' : [], 'min':[],'max':[]}
+
+scenario = "MountainCar-v0"
+
+
+env = gym.make(scenario)
+print(f"Actions: {env.action_space.n}")
+print(f"High: {env.observation_space.high}")  # [0.6 0.07]
+print(f"Low: {env.observation_space.low}")  # [-1.2 -0.07]
+dimensions = env.observation_space.shape[0]  # len(env.observation_space.high)
+
+# initialize number of bins/buckets per dimension
+osSize = [binsCount] * len(env.observation_space.high)
+
+# np.savez('test.npz',osSize)
+# os2 = np.load('test.npz')[0]
+# print(os2)
+
+binSize = (env.observation_space.high - env.observation_space.low) / osSize
+print(f"Size: {binSize}")
+
+#initialize q table
+q = np.random.uniform(low=-2, high=0, size=(osSize + [env.action_space.n]))
 
 def getDiscreteState(state):
     discreteState = (state - env.observation_space.low) / binSize
@@ -43,10 +48,8 @@ def getDiscreteState(state):
 # 1 - still
 # 2 - right
 
-scenario = "MountainCar-v0"
-
 for episode in range(episodes):
-    if episode % 2000 == 0 or episode == episodes - 1:
+    if episode % showEvery == 0 or episode == episodes - 1: #also show the last one
         env = gym.make(scenario, render_mode="human")
         print(f"EPISODE: {episode}")
     else:
