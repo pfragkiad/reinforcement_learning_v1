@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 # pygame
@@ -8,7 +9,7 @@ binsCount = 30
 
 learningRate = 0.1
 discount = 0.95  # how important are future actions
-episodes = 2_000
+episodes = 4_000
 showEvery = 500
 epsilon = 0.5
 startEpsilonDecaying = 1
@@ -16,7 +17,7 @@ endEpsilonDecaying = episodes // 2
 epsilonDecayValue = epsilon / (endEpsilonDecaying - startEpsilonDecaying)
 
 episodeRewards = []
-aggregatedEpisodeRewards = {'ep': [], 'avg' : [], 'min':[],'max':[]}
+aggregatedEpisodeRewards = {"ep": [], "avg": [], "min": [], "max": []}
 
 scenario = "MountainCar-v0"
 
@@ -37,19 +38,23 @@ osSize = [binsCount] * len(env.observation_space.high)
 binSize = (env.observation_space.high - env.observation_space.low) / osSize
 print(f"Size: {binSize}")
 
-#initialize q table
+# initialize q table
 q = np.random.uniform(low=-2, high=0, size=(osSize + [env.action_space.n]))
+
 
 def getDiscreteState(state):
     discreteState = (state - env.observation_space.low) / binSize
     return tuple(discreteState.astype(np.int_))
+
 
 # 0 - left
 # 1 - still
 # 2 - right
 
 for episode in range(episodes):
-    if episode % showEvery == 0 or episode == episodes - 1: #also show the last one
+    episodeReward = 0
+
+    if episode % showEvery == 0 or episode == episodes - 1:  # also show the last one
         env = gym.make(scenario, render_mode="human")
         print(f"EPISODE: {episode}")
     else:
@@ -72,6 +77,7 @@ for episode in range(episodes):
         # new_state,reward,done,truncated,info =  env.step(action)
 
         newState, reward, terminated, truncated, _ = env.step(action)
+        episodeReward += reward
         newDiscreteState = getDiscreteState(newState)
 
         # if previousDiscreteState != discreteState:
@@ -101,12 +107,32 @@ for episode in range(episodes):
         # not needed
         # env.render
     if truncated and episode % 10 == 0:
-        print(f"Truncated @{episode}")
+        print(f"Truncated at {episode}")
     elif terminated and episode % 10 == 0:
-        print(f"Terminated @{episode}")
-    
+        print(f"Terminated at {episode}")
+
     if endEpsilonDecaying >= episode >= startEpsilonDecaying:
         epsilon -= epsilonDecayValue
 
+    episodeRewards.append(episodeReward)
+
+    #if episode % showEvery == 0:
+    if episode % showEvery == 0 and episode>0:
+        lastRewards = episodeRewards[-showEvery:]
+        averageReward = sum(lastRewards)/len(lastRewards)
+        aggregatedEpisodeRewards['ep'].append(episode)
+        aggregatedEpisodeRewards['avg'].append(averageReward)
+        aggregatedEpisodeRewards['min'].append(min(lastRewards))
+        aggregatedEpisodeRewards['max'].append(max(lastRewards))
+
+        print(f'Episode: {episode}, avg: {averageReward}, min: {min(lastRewards)}, max: {max(lastRewards)}')
+
+        np.save(f'data/{episode:05}',q)
 
 env.close()
+
+plt.plot(aggregatedEpisodeRewards['ep'],aggregatedEpisodeRewards['avg'], label='avg')
+plt.plot(aggregatedEpisodeRewards['ep'],aggregatedEpisodeRewards['min'], label='min')
+plt.plot(aggregatedEpisodeRewards['ep'],aggregatedEpisodeRewards['max'], label='max')
+plt.legend(loc='upper left')
+plt.show()
